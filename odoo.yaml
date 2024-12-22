@@ -1,0 +1,65 @@
+version: "3.7"
+services:
+  odoo18_app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: odoo:custom
+    user: root
+ 
+    volumes:
+      - odoo_data:/var/lib/odoo
+      - odoo_custom_addons:/mnt/extra-addons
+
+    networks:
+      - postonet
+
+    environment:
+      - HOST=odoo_db
+      - USER=odoo
+      - PASSWORD=e6e29095e50e91c0565853f9c0dc6ad9
+      - WORKERS=5
+
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.odoo.rule=Host(`posto.tectonny.com.br`)
+        - traefik.http.routers.odoo.entrypoints=websecure
+        - traefik.http.routers.odoo.tls=true
+        - traefik.http.routers.odoo.tls.certresolver=letsencryptresolver
+        - traefik.http.services.odoo.loadbalancer.server.port=8069
+
+  odoo_db:
+    image: postgres:15
+
+    volumes:
+      - odoo_db_data:/var/lib/postgresql/data/pgdata
+
+    networks:
+      - postonet
+    ports:
+      - 5432:5432
+
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_PASSWORD=e6e29095e50e91c0565853f9c0dc6ad9
+      - POSTGRES_USER=odoo
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+          
+volumes:
+  odoo_data:
+  odoo_custom_addons:
+  odoo_db_data:
+
+networks:
+  postonet:
+    external: true
+    attachable: true
+    name: postonet
